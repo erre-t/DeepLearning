@@ -210,8 +210,9 @@ def MiniBatchGD(trainX, trainY, validationX, validationY, testX, testY, GDparams
             accs_train.append(acc_train)
             accs_valid.append(acc_valid)
 
+
         print(str(i+1) + ' of ' + str(GDparams['n_epochs']))
-        #print('Train Accuracy: ' + str(acc_train) + '    Valid Accuracy: ' + str(acc_valid))
+        print('Train Accuracy: ' + str(acc_train) + '    Valid Accuracy: ' + str(acc_valid))
 
         #cost_train = ComputeCost(trainX, trainY, W1, W2, b1, b2, lamb)
         #cost_valid = ComputeCost(validationX, validationY, W1, W2, b1, b2, lamb)
@@ -220,9 +221,13 @@ def MiniBatchGD(trainX, trainY, validationX, validationY, testX, testY, GDparams
 
     # Run final test once we found lambda
     acc_test = ComputeAccuracy(testX, testY, W1, W2, b1, b2)
-    #print('Test Accuracy: ' + str(acc_test) +'  Lambda: ' + str(lamb))
+    acc_valid  = ComputeAccuracy(validationX, validationY, W1, W2, b1, b2)
+
+    print('Validation Accuracy: ' + str(acc_valid) +'  Lambda: ' + str(lamb))
+    print('Test Accuracy: ' + str(acc_test) +'  Lambda: ' + str(lamb))
 
     #plotCostsEpocs(GDparams, costs_train, costs_valid)
+
     plotAcc(GDparams, accs_train, accs_valid, lamb, acc_test)
     plotCosts(GDparams, costs_train, costs_valid, lamb)
     plotLoss(GDparams, losses_train, losses_valid, lamb)
@@ -480,32 +485,42 @@ def main():
 
 
       # Cycles =  steps / (2*n_s)
-        # steps = 'Number of batches' * 'epocs'
-        # Number of batch = n / 'n_batch'
-        #The positive integer ns is known as the stepsize and is usually chosen so that one cycle of training corresponds to a multiple of epochs of training.
+    # steps = 'Number of batches' * 'epocs'
+    # Number of batch = n / 'n_batch'
+    #The positive integer ns is known as the stepsize and is usually chosen so that one cycle of training corresponds to a multiple of epochs of training.
 
-        # n_s = 2 * floor(n / n_batch)
+    # n_s = 2 * floor(n / n_batch)
 
-        # cycles = ( (n / n_batch) * epochs) / (2 * n_s)
+    # cycles = ( (n / n_batch) * epochs) / (2 * n_s)
 
-                # (n * epochs) / (2 * n_batch * n_s)
+    # cycles =  (n * epochs) / (2 * n_batch * n_s)
 
-    GDparams = {'n_batch': 100, 'eta_min': 1e-5, 'eta_max': 1e-1, 'n_s': 800, 'n_epochs': 48}
-    lamb = 0.01
+    n_s = 2 * (n / 100)
+    print('n_s:  ' + str(n_s))
+    print('n: ' + str(n))
+
+    GDparams = {'n_batch': 100, 'eta_min': 1e-5, 'eta_max': 1e-1, 'n_s': n_s, 'n_epochs': 12}
+    lamb = 0.006551518774129204
     W1 = np.random.normal(0, 1/np.sqrt(d), (m,d))
     W2 = np.random.normal(0, 1/np.sqrt(m), (K,m))
     b1 = np.zeros((m,1))
     b2 = np.zeros((K,1))
 
     [W1, W2, b1, b2] = MiniBatchGD(trainX, trainY, validationX, validationY, testX, testY, GDparams, W1, W2, b1, b2, lamb)
+
+    # Broad search
+    #l_min = -5
+    #l_max = -1
+
+    # Narrow search
     """
-    l_min = -5
-    l_max = -1
+    l_min = -3
+    l_max = -2
+
     l = l_min + (l_max - l_min) * np.random.uniform(0, 1, 8)
 
     for lamb in l:
-
-        [W1, W2, b1, b2] = MiniBatchGD(trainX, trainY, validationX, validationY, testX, testY, GDparams, W1, W2, b1, b2, lamb)
+        [W1, W2, b1, b2] = MiniBatchGD(trainX, trainY, validationX, validationY, testX, testY, GDparams, W1, W2, b1, b2, 10**lamb)
     """
 
 
