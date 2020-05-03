@@ -476,8 +476,6 @@ def main():
     [trainX, trainY, validationX, validationY, testX, testY] = getData()
     #[trainX, trainY, validationX, validationY, testX, testY] = getDataOriginal()
 
-
-
     d = trainX.shape[0] # Number of dimensions
     n = trainX.shape[1] # Number of images
     K = trainY.shape[0] # Number of classes
@@ -522,7 +520,6 @@ def main():
     for lamb in l:
         [W1, W2, b1, b2] = MiniBatchGD(trainX, trainY, validationX, validationY, testX, testY, GDparams, W1, W2, b1, b2, 10**lamb)
     """
-
 
     """
     [ga_W1, ga_b1, ga_W2, ga_b2] = ComputeGradsNumSlow(trainX[:,0:100], trainY[:,0:100], W1, W2, b1, b2, lamb, 1e-5)
