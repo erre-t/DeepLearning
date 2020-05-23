@@ -1,9 +1,13 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import random
 
 
 class RNN():
     def __init__(self):
+
+        random.seed(10)
+
         self.m = 5
         self.eta = 0.1
         self.sig = 0.01
@@ -25,12 +29,9 @@ class RNN():
         self.grad_b = np.zeros((self.K, self.seq_length))
         self.grad_c = np.zeros((self.K, self.seq_length))
 
-        self.h_prev = np.zeros((self.m,1))
-
-
     def soft_max(self, s):
         """ Standard definition of the soft_max function """
-        return np.exp(s) / np.sum(np.exp(s), axis=0)
+        return np.exp(s) / np.sum(np.exp(s))
 
     def char_to_ind(self, char):
         one_hot = np.zeros((self.K))
@@ -49,62 +50,46 @@ class RNN():
         p = np.zeros((self.K, self.seq_length))
 
 
-        #h[:,0] = np.zeros((self.m))
-
+        h[:,0] = np.zeros((self.m))
         x0 = X[:,0].reshape((self.K, 1))
 
-        """
-        a[:,0] = (np.dot(self.W, h[:,0].reshape(self.m,1)) + np.dot(self.U, x0) + self.b).reshape(self.m)
-        h[:,0] = (np.tanh(a[:,0])).reshape(self.m)
-        o[:,0] = (np.dot(self.V, h[:,0].reshape(self.m,1)) + self.c).reshape(self.K)
-        p[:,0] = (self.soft_max(o[:,0])).reshape(self.K)
-        """
-
-        for t in range(1, self.seq_length):
+        for t in range(self.seq_length):
             x = X[:,t].reshape((self.K, 1))
 
-            a[:,t] = (np.dot(self.W, self.h_prev.reshape(self.m,1)) + np.dot(self.U, x) + self.b).reshape(self.m)
+            a[:,t] = (np.dot(self.W, h[:,t-1].reshape(self.m,1)) + np.dot(self.U, x) + self.b).reshape(self.m)
             h[:,t] = (np.tanh(a[:,t])).reshape(self.m)
             o[:,t] = (np.dot(self.V, h[:,t].reshape(self.m,1)) + self.c).reshape(self.K)
             p[:,t] = (self.soft_max(o[:,t])).reshape(self.K)
 
-            #a[t] = a_curr.reshape(self.m) #reshape from (m,1) to (m,)
-            #h[t] = h_curr.reshape(self.m) #reshape from (m,1) to (m,)
-            #p[t] = p_curr.reshape(self.K) #reshape from (k,1) to (k,)
-            self.h_prev = h[:,t]
-
-        #self.h_prev = h_curr
-        #print(h.shape)
-        #a = a.reshape(self.m, self.seq_length)
-        #h = h.reshape(self.m, self.seq_length)
-        #p = p.reshape(self.K, self.seq_length)
-        #print(a.shape)
+        """
+        a = np.dot(self.W, h) + np.dot(self.U, X) + self.b
+        h = np.tanh(a)
+        o = np.dot(self.V, h) + self.c
+        p = self.soft_max(o)
+        """
 
         return a, h, p
 
     def backward_pass(self, X, Y, a, h, p):
 
-        self.U = np.random.rand(self.m, self.K) * self.sig
-        self.W = np.random.rand(self.m, self.m) * self.sig
-        self.V = np.random.rand(self.K, self.m) * self.sig
-        self.b = np.zeros((self.m,1))
-        self.c = np.zeros((self.K,1))
-
         grad_a = np.zeros((self.m, self.seq_length))
         grad_h = np.zeros((self.m, self.seq_length))
         grad_o = np.zeros((self.K, self.seq_length))
 
-        for t in range(self.seq_length):
-            y_t = Y[:,t].reshape(self.K,1)
-            p_t = p[:,t].reshape(self.K,1)
-            grad_o[:,t] = (-(y_t - p_t)).reshape(self.K)
+        #for t in range(self.seq_length):
+        #    y_t = Y[:,t].reshape(self.K,1)
+        #    p_t = p[:,t].reshape(self.K,1)
+        #    grad_o[:,t] = (-(y_t - p_t)).reshape(self.K)
 
-        for t in range(self.seq_length):
-            self.grad_V += np.dot(grad_o[:,t].reshape(self.K, 1), np.transpose(h[:,t].reshape(self.m,1)))
+        grad_o = -(Y - p)
+
+
+        #for t in range(self.seq_length):
+        #    self.grad_V += np.dot(grad_o[:,t].reshape(self.K, 1), np.transpose(h[:,t].reshape(self.m,1)))
+        self.grad_V = np.dot(grad_o, np.transpose(h))
 
         grad_h[:,-1] = np.dot(grad_o[:,-1], self.V)
         grad_a[:,-1] = np.dot(grad_h[:,-1], np.diag(1-np.tanh(a[:,-1])**2))
-
 
         for t in range(self.seq_length-2, -1, -1):
             grad_h[:,t] = np.dot(grad_o[:,t], self.V) + np.dot(grad_a[:,t+1], self.W)
@@ -114,14 +99,13 @@ class RNN():
         self.grad_b = grad_a.sum(axis = 1).reshape(self.m, 1) # ????
 
         for t in range(self.seq_length):
-            self.grad_W += np.outer(grad_a[:,t].reshape(self.m, 1), h[:,t-1]) # ????
+            self.grad_W += np.dot(grad_a[:,t].reshape(self.m, 1), np.transpose(h[:,t-1].reshape(self.m,1))) # ????
 
 
-        for t in range(self.seq_length):
-            x = X[:,t].reshape(self.K, 1)
-            self.grad_U += np.dot(grad_a[:,t].reshape(self.m, 1), np.transpose(x))
+        self.grad_U = np.dot(grad_a, np.transpose(X))
 
-        #return self.grad_b, self.grad_c, self.grad_U, self.grad_V, self.grad_W
+
+        return self.grad_b, self.grad_c, self.grad_U, self.grad_V, self.grad_W
 
     def compute_loss(self, Y, p):
         loss = 0
@@ -261,11 +245,14 @@ class RNN():
 def main():
 
 
+
     rnn = RNN()
     X, Y = rnn.get_one_hot_sequence()
     #Y = rnn.synthesize()
     a, h, p = rnn.forward_pass(X)
+
     rnn.backward_pass(X, Y, a, h, p)
+
     [grad_num_b, grad_num_c, grad_num_U, grad_num_V, grad_num_W] = rnn.compute_grads_num(X, Y, 1e-4)
 
 
