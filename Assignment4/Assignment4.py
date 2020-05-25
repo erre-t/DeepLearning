@@ -6,7 +6,7 @@ import random
 class RNN():
     def __init__(self):
 
-        self.m = 100
+        self.m = 5
         self.eta = 0.1
         self.sig = 0.01
         self.seq_length = 25
@@ -31,8 +31,6 @@ class RNN():
         self.grad_a = np.zeros((self.m, self.seq_length))
         self.grad_h = np.zeros((self.m, self.seq_length))
         self.grad_o = np.zeros((self.K, self.seq_length))
-
-        #self.hprev = np.zeros((self.m, self.seq_length))
 
         self.best_U = []
         self.best_W = []
@@ -61,19 +59,14 @@ class RNN():
         p = np.zeros((self.K, self.seq_length))
         h = np.zeros((self.m, self.seq_length))
         h[:,0] = h0[:,self.seq_length-1].reshape(self.m)
-        #print(h)
-        #h[:,0] = self.hprev.reshape(self.m)
-        #self.hprev = np.zeros((self.m, 1))
-
+        #h = h0
         for t in range(self.seq_length):
             x = X[:,t].reshape((self.K, 1))
 
             a[:,t] = (np.dot(self.W, h[:,t-1].reshape(self.m,1)) + np.dot(self.U, x) + self.b).reshape(self.m)
-            #a[:,t] = (np.dot(self.W, h[:,t-1].reshape(self.m,1)) + np.dot(self.U, x) + self.b).reshape(self.m)
             h[:,t] = (np.tanh(a[:,t])).reshape(self.m)
             o[:,t] = (np.dot(self.V, h[:,t].reshape(self.m,1)) + self.c).reshape(self.K)
             p[:,t] = (self.soft_max(o[:,t])).reshape(self.K)
-
 
         loss = self.compute_loss(Y, p)
 
@@ -81,9 +74,6 @@ class RNN():
 
     def backward_pass(self, X, Y, a, h, p):
 
-        #grad_a = np.zeros((self.m, self.seq_length))
-        #grad_h = np.zeros((self.m, self.seq_length))
-        #grad_o = np.zeros((self.K, self.seq_length))
         self.grad_U = np.zeros((self.m, self.K))
         self.grad_W = np.zeros((self.m, self.m))
         self.grad_V = np.zeros((self.K, self.m))
@@ -93,27 +83,15 @@ class RNN():
         self.grad_h = np.zeros((self.m, self.seq_length))
         self.grad_o = np.zeros((self.K, self.seq_length))
 
-        #h[:,0] = h0[:,self.seq_length-1].reshape(self.m)
-
-
-        #for t in range(self.seq_length):
-        #    y_t = Y[:,t].reshape(self.K,1)
-        #    p_t = p[:,t].reshape(self.K,1)
-        #    self.grad_o[:,t] = (-(y_t - p_t)).reshape(self.K)
-
         self.grad_o = -(Y - p)
-
-        #for t in range(self.seq_length):
-        #    self.grad_V += np.dot(self.grad_o[:,t].reshape(self.K, 1), np.transpose(h[:,t].reshape(self.m,1)))
 
         self.grad_V = np.dot(self.grad_o, np.transpose(h))
 
         self.grad_h[:,-1] = np.dot(self.grad_o[:,-1], self.V)
         self.grad_a[:,-1] = np.dot(self.grad_h[:,-1], np.diag(1-np.tanh(a[:,-1])**2))
 
-        for t in range(self.seq_length-2, -1, -1):
-        #for t in reversed(range(self.seq_length-1)):
-
+        #for t in range(self.seq_length-2, -1, -1):
+        for t in reversed(range(self.seq_length-1)):
             self.grad_h[:,t] = np.dot(self.grad_o[:,t], self.V) + np.dot(self.grad_a[:,t+1], self.W)
             self.grad_a[:,t] = np.dot(self.grad_h[:,t], np.diag(1-np.tanh(a[:,t])**2))
 
@@ -122,11 +100,7 @@ class RNN():
 
         for t in range(1,self.seq_length):
             self.grad_W += np.dot(self.grad_a[:,t].reshape(self.m, 1), np.transpose(h[:,t-1].reshape(self.m,1))) # ????
-            #self.grad_W += np.dot(self.grad_a[:,t].reshape(self.m,1), np.transpose(self.hprev))
 
-        #for t in range(self.seq_length):
-        #    xt = X[:,t].reshape(self.K, 1)
-        #    self.grad_U += np.dot(self.grad_a[:,t].reshape(self.m,1), xt.T)
 
         self.grad_U = np.dot(self.grad_a, np.transpose(X))
 
@@ -136,7 +110,6 @@ class RNN():
         self.grad_V = np.maximum(np.minimum(self.grad_V, 5), -5)
         self.grad_b = np.maximum(np.minimum(self.grad_b, 5), -5)
         self.grad_c = np.maximum(np.minimum(self.grad_c, 5), -5)
-        #return self.grad_b, self.grad_c, self.grad_U, self.grad_V, self.grad_W
 
     def minmax(self):
 
@@ -158,7 +131,8 @@ class RNN():
             loss -= np.log(np.dot(np.transpose(y), p[:,t].reshape(self.K,1)))
         return loss[0][0]
 
-    def get_one_hot_sequence(self,e):
+    def get_one_hot_sequence(self, e):
+
         X_chars = self.book_data[e: e + self.seq_length]
         Y_chars = self.book_data[e+1: e + self.seq_length+1]
 
@@ -195,6 +169,7 @@ class RNN():
             self.b[i,0] -= h
 
         print("grad_num_b finished ...")
+        hh = np.zeros((self.m, self.seq_length))
 
         for i in range(self.c.shape[0]):
 
@@ -206,6 +181,7 @@ class RNN():
             self.c[i,0] -= h
 
         print("grad_num_c finished ...")
+        hh = np.zeros((self.m, self.seq_length))
 
 
         for i in range(self.U.shape[0]):
@@ -219,6 +195,7 @@ class RNN():
 
 
         print("grad_num_U finished ...")
+        hh = np.zeros((self.m, self.seq_length))
 
         for i in range(self.W.shape[0]):
           for j in range(self.W.shape[1]):
@@ -231,6 +208,7 @@ class RNN():
 
 
         print("grad_num_W finished ...")
+        hh = np.zeros((self.m, self.seq_length))
 
         for i in range(self.V.shape[0]):
           for j in range(self.V.shape[1]):
@@ -279,8 +257,6 @@ class RNN():
     def train(self):
         e = 0
         update_steps = 0
-        epochs = 1
-        #m_b, m_c, m_U, m_W, m_V = 0, 0, 0, 0, 0
         m_b = np.zeros(self.b.shape)
         m_c = np.zeros(self.c.shape)
         m_U = np.zeros(self.U.shape)
@@ -292,9 +268,10 @@ class RNN():
         smooth_losses = []
         smooth_loss = -np.log(1 / self.K) * self.seq_length
 
-        epochs = 1
+        epochs = 5
         for epoch in range(epochs):
-            while update_steps < 3000:    #while e < (len(self.book_data)-self.seq_length-1):
+
+            while update_steps < 1000:    #while e < (len(self.book_data)-self.seq_length-1):
 
                 X, Y = self.get_one_hot_sequence(e)
                 loss, a, h, p = self.forward_pass(X, Y, h0)
@@ -305,21 +282,19 @@ class RNN():
 
                 smooth_loss = 0.999 * smooth_loss + 0.001 * loss
 
-
-
-                losses.append(loss)
-                smooth_losses.append(smooth_loss)
-
-
                 if (update_steps%100 == 0):
-                    Y = self.synthesize(X[:,0], h)
-                    self.print_sequence(Y)
+                #    Y = self.synthesize(X[:,0], h)
+                #    self.print_sequence(Y)
+                    losses.append(loss)
+                    smooth_losses.append(smooth_loss)
+
 
                 e += self.seq_length
                 update_steps += 1
 
             e = 0
-            self.hprev = np.zeros((self.m, 1))
+            update_steps = 0
+            h0 = np.zeros((self.m, self.seq_length))
             print("Epoch " + str(epoch + 1) + " done...")
 
         optimal_model = np.argmin(smooth_losses)
@@ -349,6 +324,7 @@ class RNN():
         self.best_W.append(self.W)
 
     def synthesize(self, x0, h0):
+        self.seq_length = 200
 
         #x = "a"
         #x = self.char_to_ind(x0).reshape(self.K, 1)
@@ -361,7 +337,8 @@ class RNN():
         h = np.zeros((self.m, self.seq_length))
 
         #self.hprev = np.zeros((self.m))
-        h[:,0] = h0[:,self.seq_length-1].reshape(self.m)
+        h[:,0] = h0[:,25-1].reshape(self.m)
+
 
         Y = np.zeros((self.K, self.seq_length))
         for t in range(self.seq_length):
@@ -371,13 +348,19 @@ class RNN():
             o[:,t] = (np.dot(self.V, h[:,t].reshape(self.m,1)) + self.c).reshape(self.K)
             p[:,t] = (self.soft_max(o[:,t])).reshape(self.K)
 
-            i = np.argmax(p[:,t])
-            #i = np.random.randint(0, len(p[:,t]))
-            xnext = self.book_chars[i]
+            cp = np.cumsum(p[:,t])
+            dist = np.random.uniform(low = 0, high = 1)
+            i = np.nonzero(cp - dist > 0)
+            ii = i[0][0]
+            xnext = self.book_chars[ii]
             Y[:,t] = self.char_to_ind(xnext)
             x = self.char_to_ind(xnext).reshape(self.K,1)
 
+        self.seq_length = 25
+
+
         return Y
+
 
     def print_sequence(self, X):
         sequence = []
@@ -390,8 +373,8 @@ class RNN():
 def plotLoss(losses, smooth_losses): # Update steps
     t = np.arange(0, len(losses), 1)
     fig, ax = plt.subplots()
-    ax.plot(t[::100], losses[0:len(losses):100], label = 'Loss')
-    ax.plot(t[::100], smooth_losses[0:len(losses):100], label = 'Smooth loss')
+    ax.plot(t, losses, label = 'Loss')
+    ax.plot(t, smooth_losses, label = 'Smooth loss')
     ax.legend()
     ax.plot(t, losses, t, smooth_losses)
     ax.set(xlabel='Update steps', ylabel='Loss')
@@ -401,19 +384,24 @@ def main():
     np.random.seed(10)
 
     rnn = RNN()
-
-    ## Check gradients
     #[X, Y] = rnn.get_one_hot_sequence(0)
     #rnn.check_gradients(X, Y)
 
+    ## Check gradients
+    [X, Y] = rnn.get_one_hot_sequence(0)
+    rnn.check_gradients(X, Y)
+
     ## Training
-    ptimal_model, losses, smooth_losses = rnn.train()
+    #ptimal_model, losses, smooth_losses = rnn.train()
 
     ## Synthesize
     #Y = rnn.synthesize(X[:,0])
     #rnn.print_sequence(Y)
     # Plots
-    plotLoss(losses, smooth_losses)
+
+    #plotLoss(losses, smooth_losses)
+
+
 
 
 main()
